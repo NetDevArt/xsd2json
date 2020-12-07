@@ -1,0 +1,4 @@
+setuptools~=50.3.2
+lxml~=4.6.2
+pathlib~=1.0.1
+simplejson~=3.17
