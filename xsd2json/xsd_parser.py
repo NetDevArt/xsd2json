@@ -101,11 +101,7 @@ class XSDParser:
                     schema['children'][element_name] = restriction_schema
 
         # If element has attributes, insert it
-        attrib = element.find(".//xs:attribute", namespaces=self.namespaces)
-        if attrib is not None:
-            schema['attrs'] = {
-                attrib.attrib.get('name'): None
-            }
+        self.get_attributes_restrictions(schema, element)
 
     def build_complex_type_dependencies(self, complex_type):
         """
@@ -171,6 +167,15 @@ class XSDParser:
 
         return schema
 
+    def get_attributes_restrictions(self, schema, element):
+        attrib = element.find(".//xs:attribute", namespaces=self.namespaces)
+        if attrib is not None:
+            attr_name = attrib.attrib.get('name')
+            schema.setdefault('attrs', {})
+            schema['attrs'][attr_name] = self.get_simple_type_restrictions(attrib)
+            print(schema)
+
+
     @staticmethod
     def is_required_element(element, schema):
         # When parsing elements recursively, check if this one is required or nillable
@@ -202,11 +207,7 @@ class XSDParser:
                 schema['children'][element_name] = self.xsd_to_json_schema_type(element_type)
 
             # If element has attributes, get it
-            attrib = element.find(".//xs:attribute", namespaces=self.namespaces)
-            if attrib is not None:
-                schema['children'][element_name]['attrs'] = {
-                    attrib.attrib.get('name'): None
-                }
+            self.get_attributes_restrictions(schema['children'][element_name], element)
 
             # Update schema pointer to build the tree with its own children
             schema = schema['children'][element_name]
@@ -238,10 +239,19 @@ class XSDParser:
         if code_mirror_format:
             new_schema = self.format_codemirror(schema, topLevel=True)
             for item in new_schema:
+                # Simply get children names
                 if isinstance(new_schema[item], set):
                     new_schema[item] = list(new_schema[item])
                 if 'children' in new_schema[item] and isinstance(new_schema[item]['children'], set):
                     new_schema[item]['children'] = list(new_schema[item]['children'])
+                # And get enumeration in attrs, else None
+                if 'attrs' in new_schema[item]:
+                    for attr in new_schema[item]['attrs']:
+                        if 'enumeration' in new_schema[item]['attrs'][attr]:
+                            new_schema[item]['attrs'][attr] = new_schema[item]['attrs'][attr]['enumeration']
+                        else:
+                            new_schema[item]['attrs'][attr] = None
+
             schema = new_schema
         else:
             if len(schema['children']) == 1:
